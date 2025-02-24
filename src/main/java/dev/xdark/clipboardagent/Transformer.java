@@ -135,6 +135,7 @@ final class Transformer implements ClassFileTransformer {
 				err.printf("Failed to apply the patch to %s%n", ClipboardAgent.CLIPBOARD_CLASS);
 				ex.printStackTrace(err);
 			}
+			return null;
 		}
 		return cw.toByteArray();
 	}
