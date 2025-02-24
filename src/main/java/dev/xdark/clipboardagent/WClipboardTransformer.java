@@ -114,8 +114,8 @@ final class WClipboardTransformer extends AbstractTransformer {
 							// Already patched
 							throw new IllegalStateException("handleContentsChanged contains monitorenter bytecode");
 						}
-						// Normal exit path
 						if (opcode == RETURN) {
+							// Normal exit path
 							super.visitVarInsn(ALOAD, 0);
 							super.visitInsn(MONITOREXIT);
 						}

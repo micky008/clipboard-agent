@@ -25,6 +25,9 @@ final class SunClipboardTransformer extends AbstractTransformer {
 				if (!"getData".equals(name)) return mv;
 				if (!"(Ljava/awt/datatransfer/DataFlavor;)Ljava/lang/Object;".equals(descriptor)) return mv;
 				pendingPatch = false;
+				// access |= ACC_SYNCHRONIZED;
+				// Class redefinition does not support change of access modifiers,
+				// so it must be done the hard way.
 				return new MethodVisitor(ASM9, mv) {
 					final Label
 							start = new Label(),
@@ -40,6 +43,7 @@ final class SunClipboardTransformer extends AbstractTransformer {
 
 					@Override
 					public void visitEnd() {
+						// Handle exception exit path
 						super.visitLabel(end);
 						super.visitVarInsn(ALOAD, 0);
 						super.visitInsn(MONITOREXIT);
@@ -50,7 +54,12 @@ final class SunClipboardTransformer extends AbstractTransformer {
 
 					@Override
 					public void visitInsn(int opcode) {
+						if (opcode == MONITORENTER) {
+							// Already patched
+							throw new IllegalStateException("getData contains monitorenter bytecode");
+						}
 						if (opcode == RETURN) {
+							// Normal exit path
 							super.visitVarInsn(ALOAD, 0);
 							super.visitInsn(MONITOREXIT);
 						}
