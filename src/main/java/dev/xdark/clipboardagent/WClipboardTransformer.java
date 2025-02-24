@@ -8,28 +8,21 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
 
-import java.io.PrintStream;
-import java.lang.instrument.ClassFileTransformer;
-import java.lang.instrument.IllegalClassFormatException;
 import java.lang.invoke.LambdaMetafactory;
-import java.security.ProtectionDomain;
 
 import static org.objectweb.asm.Opcodes.*;
 
-final class Transformer implements ClassFileTransformer {
-	boolean pendingPatch = true;
+final class WClipboardTransformer extends AbstractTransformer {
+	static final String WCLIPBOARD_CLASS = "sun.awt.windows.WClipboard";
+	static final String WCLIPBOARD_CLASS_INTERNAL_NAME = "sun/awt/windows/WClipboard";
 
 	@Override
-	public byte[] transform(ClassLoader loader, String className, Class<?> classBeingRedefined, ProtectionDomain protectionDomain, byte[] classfileBuffer) throws IllegalClassFormatException {
-		if (!ClipboardAgent.CLIPBOARD_CLASS_INTERNAL_NAME.equals(className)) return null;
-		pendingPatch = false;
-		ClassReader cr = new ClassReader(classfileBuffer);
-		ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES) {
-			@Override
-			protected ClassLoader getClassLoader() {
-				return null;
-			}
-		};
+	String className() {
+		return WCLIPBOARD_CLASS;
+	}
+
+	@Override
+	void apply(ClassReader cr, ClassWriter cw) {
 		ClassVisitor cv = new ClassVisitor(ASM9, cw) {
 			@Override
 			public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
@@ -37,6 +30,7 @@ final class Transformer implements ClassFileTransformer {
 				if ((access & (ACC_STATIC | ACC_NATIVE)) != 0) return mv;
 				if (!"handleContentsChanged".equals(name)) return mv;
 				if (!"()V".equals(descriptor)) return mv;
+				pendingPatch = false;
 				return new MethodVisitor(ASM9, mv) {
 					Label start;
 					Label end;
@@ -56,7 +50,7 @@ final class Transformer implements ClassFileTransformer {
 						super.visitVarInsn(ALOAD, 0);
 						super.visitInvokeDynamicInsn(
 								"run",
-								String.format("(L%s;)Ljava/lang/Runnable;", ClipboardAgent.CLIPBOARD_CLASS_INTERNAL_NAME),
+								String.format("(L%s;)Ljava/lang/Runnable;", WCLIPBOARD_CLASS_INTERNAL_NAME),
 								new Handle(
 										H_INVOKESTATIC,
 										Type.getInternalName(LambdaMetafactory.class),
@@ -67,7 +61,7 @@ final class Transformer implements ClassFileTransformer {
 								Type.getMethodType(Type.VOID_TYPE),
 								new Handle(
 										H_INVOKEVIRTUAL,
-										ClipboardAgent.CLIPBOARD_CLASS_INTERNAL_NAME,
+										WCLIPBOARD_CLASS_INTERNAL_NAME,
 										"handleContentsChanged",
 										"()V",
 										false
@@ -88,7 +82,7 @@ final class Transformer implements ClassFileTransformer {
 						monitor_exit:
 						{
 							if (opcode != INVOKEVIRTUAL) break monitor_exit;
-							if (!("sun/awt/SunClipboard".equals(owner) || ClipboardAgent.CLIPBOARD_CLASS_INTERNAL_NAME.equals(owner)))
+							if (!("sun/awt/SunClipboard".equals(owner) || WCLIPBOARD_CLASS_INTERNAL_NAME.equals(owner)))
 								break monitor_exit;
 							if (!"checkChange".equals(name)) break monitor_exit;
 							if (!"([J)V".equals(descriptor)) break monitor_exit;
@@ -130,16 +124,6 @@ final class Transformer implements ClassFileTransformer {
 				};
 			}
 		};
-		try {
-			cr.accept(cv, 0);
-		} catch (Exception ex) {
-			PrintStream err = System.err;
-			synchronized (err) {
-				err.printf("Failed to apply the patch to %s%n", ClipboardAgent.CLIPBOARD_CLASS);
-				ex.printStackTrace(err);
-			}
-			return null;
-		}
-		return cw.toByteArray();
+		cr.accept(cv, 0);
 	}
 }

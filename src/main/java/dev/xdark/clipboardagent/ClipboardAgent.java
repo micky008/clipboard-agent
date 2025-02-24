@@ -4,36 +4,43 @@ import java.lang.instrument.Instrumentation;
 import java.lang.instrument.UnmodifiableClassException;
 
 public final class ClipboardAgent {
-	static final String CLIPBOARD_CLASS = "sun.awt.windows.WClipboard";
-	static final String CLIPBOARD_CLASS_INTERNAL_NAME = "sun/awt/windows/WClipboard";
 
-	public static void agentmain(String args, Instrumentation inst) {
+	private static void patch(Instrumentation inst, AbstractTransformer transformer) {
+		String className = transformer.className();
 		Class<?> clipboardClass;
 		try {
-			clipboardClass = Class.forName(CLIPBOARD_CLASS, false, null);
+			clipboardClass = Class.forName(className, false, null);
 		} catch (ClassNotFoundException ignored) {
-			System.err.printf("Missing %s, not running on Windows?%n", CLIPBOARD_CLASS);
+			System.err.printf("Missing %s%n", className);
 			return;
 		}
-		Transformer transformer = new Transformer();
 		inst.addTransformer(transformer, true);
 		try {
 			inst.retransformClasses(clipboardClass);
 		} catch (UnmodifiableClassException ex) {
 			synchronized (System.err) {
-				System.err.printf("Unable to patch %s%n", CLIPBOARD_CLASS);
+				System.err.printf("Unable to patch %s%n", className);
 				ex.printStackTrace(System.err);
 			}
 			System.exit(1);
 		}
 		if (transformer.pendingPatch) {
-			System.err.printf("Transformer did not catch %s, bug?%n", CLIPBOARD_CLASS);
+			System.err.printf("Transformer did not catch %s, bug?%n", className);
 		} else {
-			System.out.printf("Patched %s%n", CLIPBOARD_CLASS);
+			System.out.printf("Patched %s%n", className);
 		}
 		if (!inst.removeTransformer(transformer)) {
 			System.err.println("Could not remove the transformer");
 		}
+	}
+
+	private static void patchWClipboard(Instrumentation inst) {
+		patch(inst, new SunClipboardTransformer());
+		patch(inst, new WClipboardTransformer());
+	}
+
+	public static void agentmain(String args, Instrumentation inst) {
+		patchWClipboard(inst);
 		System.out.println("Applied the clipboard patch");
 	}
 
