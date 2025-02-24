@@ -48,6 +48,9 @@ final class Transformer implements ClassFileTransformer {
 						// if (AppContent.getAppContext() == null) { goto skip; }
 						super.visitMethodInsn(INVOKESTATIC, "sun/awt/AppContext", "getAppContext", "()Lsun/awt/AppContext;", false);
 						super.visitJumpInsn(IFNULL, skip);
+						// if (EventQueue.isDispatchThread()) goto skip;
+						super.visitMethodInsn(INVOKESTATIC, "java/awt/EventQueue", "isDispatchThread", "()Z", false);
+						super.visitJumpInsn(IFNE, skip);
 						// EventQueue.invokeLater(this::handleContentsChanged);
 						// return;
 						super.visitVarInsn(ALOAD, 0);
