@@ -29,7 +29,7 @@ final class MonitorLocker {
 		MethodVisitor mv = this.mv;
 		Label skip = new Label();
 		// if (unlocked) goto skip;
-		mv.visitVarInsn(ALOAD, slot);
+		mv.visitVarInsn(ILOAD, slot);
 		mv.visitJumpInsn(IFNE, skip);
 		// monitorexit(this)
 		mv.visitVarInsn(ALOAD, 0);
