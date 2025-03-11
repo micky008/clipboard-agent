@@ -18,6 +18,7 @@ final class SunClipboardTransformer extends AbstractTransformer {
 
 	@Override
 	void apply(ClassReader cr, ClassWriter cw) {
+		int unlocked = getMaxLocalsFor(cr, "getData", "(Ljava/awt/datatransfer/DataFlavor;)Ljava/lang/Object;");
 		ClassVisitor cv = new ClassVisitor(ASM9, cw) {
 			@Override
 			public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
@@ -28,6 +29,7 @@ final class SunClipboardTransformer extends AbstractTransformer {
 				// access |= ACC_SYNCHRONIZED;
 				// Class redefinition does not support change of access modifiers,
 				// so it must be done the hard way.
+				MonitorLocker monitorLocker = new MonitorLocker(unlocked, mv);
 				return new MethodVisitor(ASM9, mv) {
 					final Label
 							start = new Label(),
@@ -36,8 +38,7 @@ final class SunClipboardTransformer extends AbstractTransformer {
 					@Override
 					public void visitCode() {
 						super.visitCode();
-						super.visitVarInsn(ALOAD, 0);
-						super.visitInsn(MONITORENTER);
+						monitorLocker.init();
 						super.visitLabel(start);
 					}
 
@@ -45,8 +46,7 @@ final class SunClipboardTransformer extends AbstractTransformer {
 					public void visitEnd() {
 						// Handle exception exit path
 						super.visitLabel(end);
-						super.visitVarInsn(ALOAD, 0);
-						super.visitInsn(MONITOREXIT);
+						monitorLocker.unlock();
 						super.visitInsn(ATHROW);
 						super.visitTryCatchBlock(start, end, end, null);
 						super.visitEnd();
@@ -58,10 +58,9 @@ final class SunClipboardTransformer extends AbstractTransformer {
 							// Already patched
 							throw new IllegalStateException("getData contains monitorenter bytecode");
 						}
-						if (opcode == RETURN) {
+						if (opcode == ARETURN) {
 							// Normal exit path
-							super.visitVarInsn(ALOAD, 0);
-							super.visitInsn(MONITOREXIT);
+							monitorLocker.unlock();
 						}
 						super.visitInsn(opcode);
 					}

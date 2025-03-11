@@ -1,7 +1,11 @@
 package dev.xdark.clipboardagent;
 
 import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 
 import java.io.PrintStream;
 import java.lang.instrument.ClassFileTransformer;
@@ -38,5 +42,35 @@ abstract class AbstractTransformer implements ClassFileTransformer {
 		}
 		byte[] result = cw.toByteArray();
 		return result;
+	}
+
+	protected final int getMaxLocalsFor(ClassReader cr, String targetName, String targetDesc) {
+		class Visitor extends ClassVisitor {
+			int maxLocals = -1;
+
+			Visitor() {
+				super(Opcodes.ASM9);
+			}
+
+			@Override
+			public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
+				if (!(targetName.equals(name) && targetDesc.equals(descriptor))) return null;
+				maxLocals = Type.getArgumentsAndReturnSizes(descriptor) >> 2;
+				return new MethodVisitor(Opcodes.ASM9) {
+
+					@Override
+					public void visitMaxs(int maxStack, int maxLocals) {
+						Visitor.this.maxLocals = maxLocals;
+					}
+				};
+			}
+		}
+		Visitor visitor = new Visitor();
+		cr.accept(visitor, ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+		int maxLocals = visitor.maxLocals;
+		if (maxLocals == -1) {
+			throw new IllegalStateException("Unable to get max locals for " + targetName + targetDesc);
+		}
+		return maxLocals;
 	}
 }

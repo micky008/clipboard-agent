@@ -23,6 +23,7 @@ final class WClipboardTransformer extends AbstractTransformer {
 
 	@Override
 	void apply(ClassReader cr, ClassWriter cw) {
+		int unlocked = getMaxLocalsFor(cr, "handleContentsChanged", "()V");
 		ClassVisitor cv = new ClassVisitor(ASM9, cw) {
 			@Override
 			public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
@@ -31,6 +32,7 @@ final class WClipboardTransformer extends AbstractTransformer {
 				if (!"handleContentsChanged".equals(name)) return mv;
 				if (!"()V".equals(descriptor)) return mv;
 				pendingPatch = false;
+				MonitorLocker monitorLocker = new MonitorLocker(unlocked, mv);
 				return new MethodVisitor(ASM9, mv) {
 					Label start;
 					Label end;
@@ -71,9 +73,8 @@ final class WClipboardTransformer extends AbstractTransformer {
 						super.visitMethodInsn(INVOKESTATIC, "java/awt/EventQueue", "invokeLater", "(Ljava/lang/Runnable;)V", false);
 						super.visitInsn(RETURN);
 						super.visitLabel(skip);
+						monitorLocker.init();
 						// synchronized(this) {
-						super.visitVarInsn(ALOAD, 0);
-						super.visitInsn(MONITORENTER);
 						super.visitLabel(start = new Label());
 					}
 
@@ -88,6 +89,9 @@ final class WClipboardTransformer extends AbstractTransformer {
 							if (!"([J)V".equals(descriptor)) break monitor_exit;
 							// } END synchronized
 							super.visitLabel(end = new Label());
+							// From my initial testing, I noticed toolkit thread sometimes hanging without EDT,
+							// so unlock here just in case...
+							monitorLocker.unlock();
 						}
 						super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
 					}
@@ -101,8 +105,7 @@ final class WClipboardTransformer extends AbstractTransformer {
 						// Handle exception exit path
 						Label handler = new Label();
 						super.visitLabel(handler);
-						super.visitVarInsn(ALOAD, 0);
-						super.visitInsn(MONITOREXIT);
+						monitorLocker.unlock();
 						super.visitInsn(ATHROW);
 						super.visitTryCatchBlock(start, end, handler, null);
 						super.visitEnd();
@@ -116,8 +119,7 @@ final class WClipboardTransformer extends AbstractTransformer {
 						}
 						if (opcode == RETURN) {
 							// Normal exit path
-							super.visitVarInsn(ALOAD, 0);
-							super.visitInsn(MONITOREXIT);
+							monitorLocker.unlock();
 						}
 						super.visitInsn(opcode);
 					}
