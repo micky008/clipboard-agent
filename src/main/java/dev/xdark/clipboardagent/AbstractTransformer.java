@@ -55,7 +55,9 @@ abstract class AbstractTransformer implements ClassFileTransformer {
 			@Override
 			public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
 				if (!(targetName.equals(name) && targetDesc.equals(descriptor))) return null;
-				maxLocals = Type.getArgumentsAndReturnSizes(descriptor) >> 2;
+				int maxLocals = Type.getArgumentsAndReturnSizes(descriptor) >> 2;
+				if ((access & Opcodes.ACC_STATIC) == 0) maxLocals++;
+				this.maxLocals = maxLocals;
 				return new MethodVisitor(Opcodes.ASM9) {
 
 					@Override
