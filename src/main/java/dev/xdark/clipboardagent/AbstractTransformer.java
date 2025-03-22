@@ -24,7 +24,7 @@ abstract class AbstractTransformer implements ClassFileTransformer {
 		String internalName = className().replace('.', '/');
 		if (!internalName.equals(className)) return null;
 		ClassReader cr = new ClassReader(classfileBuffer);
-		ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES) {
+		ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS) {
 			@Override
 			protected ClassLoader getClassLoader() {
 				return null;

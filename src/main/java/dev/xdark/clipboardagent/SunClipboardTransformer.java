@@ -43,13 +43,13 @@ final class SunClipboardTransformer extends AbstractTransformer {
 					}
 
 					@Override
-					public void visitEnd() {
+					public void visitMaxs(int maxStack, int maxLocals) {
 						// Handle exception exit path
 						super.visitLabel(end);
 						monitorLocker.unlock();
 						super.visitInsn(ATHROW);
 						super.visitTryCatchBlock(start, end, end, null);
-						super.visitEnd();
+						super.visitMaxs(maxStack, maxLocals);
 					}
 
 					@Override

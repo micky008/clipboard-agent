@@ -97,7 +97,7 @@ final class WClipboardTransformer extends AbstractTransformer {
 					}
 
 					@Override
-					public void visitEnd() {
+					public void visitMaxs(int maxStack, int maxLocals) {
 						Label end = this.end;
 						if (end == null) {
 							throw new IllegalStateException("Did not see call to checkChange");
@@ -108,7 +108,7 @@ final class WClipboardTransformer extends AbstractTransformer {
 						monitorLocker.unlock();
 						super.visitInsn(ATHROW);
 						super.visitTryCatchBlock(start, end, handler, null);
-						super.visitEnd();
+						super.visitMaxs(maxStack, maxLocals);
 					}
 
 					@Override
