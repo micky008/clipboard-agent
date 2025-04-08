@@ -7,7 +7,9 @@ Fix of race condition on Windows in AWT.
 - Execute `gradlew build`
 - Locate the file `build/libs/clipboard-agent.jar`
 
-- if jdk compil's problem use this dockerfile
+- if jdk compil's problem use this dockerfile  `docker build . --target=out --output=.`
+
+and the result: `clipboard-agent.jar` is in the current folder.
 
 # For NetBeans:
 
