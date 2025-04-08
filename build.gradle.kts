@@ -6,7 +6,7 @@ plugins {
 group = "dev.xdark"
 version = "1.0"
 
-java.toolchain.languageVersion.set(JavaLanguageVersion.of(8))
+java.toolchain.languageVersion.set(JavaLanguageVersion.of(17))
 
 repositories.mavenCentral()
 dependencies.implementation("org.ow2.asm:asm:9.7.1")
