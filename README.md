@@ -7,12 +7,14 @@ Fix of race condition on Windows in AWT.
 - Execute `gradlew build`
 - Locate the file `build/libs/clipboard-agent.jar`
 
+- if jdk compil's problem use this dockerfile
+
 # For NetBeans:
 
 - Navigate to your NetBeans install directory
 - Enter `etc` folder.
 - Open `netbeans.conf`
-- Add `-J-javaagent:agent_dir/clipboard-agent.jar` to `netbeans_default_options`.
+- Add `-J-javaagent:whereis/clipboard-agent.jar` to `netbeans_default_options`.
 - To test that the agent works, it is recommended that you run NetBeans from the terminal the first time.
 
 Normal log during agent initialization:
